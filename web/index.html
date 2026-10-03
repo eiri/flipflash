@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flipflash</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #151515; color: #f3f3f3; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button { font: inherit; cursor: pointer; color: inherit; background: #303030; border: 1px solid #555; border-radius: .4rem; padding: .5rem .8rem; }
+    button:hover, button:focus-visible { background: #484848; }
+    button:focus-visible, .tile:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 1rem; padding: .75rem 1rem; background: #202020; box-shadow: 0 2px 10px #0009; }
+    h1 { margin: 0; font-size: 1.2rem; }
+    #count { margin-right: auto; color: #aaa; }
+    .controls { display: flex; gap: .4rem; }
+    .controls svg { display: block; width: 1.25rem; height: 1.25rem; }
+    .controls button[aria-pressed="true"] { background: #666; }
+    #gallery.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .6rem; padding: .8rem; }
+    .tile { display: block; width: 100%; border: 0; padding: 0; overflow: hidden; background: #292929; text-align: left; border-radius: .25rem; }
+    .grid .tile { align-self: start; }
+    .grid .tile img { display: block; width: auto; max-width: 100%; max-height: 240px; margin: auto; }
+    .tile span { display: block; overflow: hidden; padding: .4rem .5rem; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; }
+    #gallery.list { display: flex; flex-direction: column; gap: 1.5rem; padding: 1rem 0; }
+    .list .tile { border-radius: 0; }
+    .list .tile img { display: block; width: 100%; height: calc(100dvh - 7rem); object-fit: contain; }
+    .list .tile span { padding: .6rem 1rem; }
+    #message { padding: 1rem; }
+    dialog { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #080808; color: white; }
+    dialog::backdrop { background: #000; }
+    .viewer { position: relative; width: 100%; height: 100%; }
+    #photo { display: block; width: 100%; height: 100%; object-fit: contain; }
+    #caption { position: absolute; bottom: .75rem; left: 20%; width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; text-shadow: 0 1px 5px #000; pointer-events: none; }
+    @media (max-width: 520px) { header { flex-wrap: wrap; } #gallery.grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Flipflash</h1><span id="count"></span>
+    <div class="controls" aria-label="Gallery layout">
+      <button id="grid" type="button" aria-label="Grid view" title="Grid view" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/></svg>
+      </button>
+      <button id="list" type="button" aria-label="Scroll view" title="Scroll view" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="2" width="20" height="9"/><rect x="2" y="13" width="20" height="9"/></svg>
+      </button>
+    </div>
+  </header>
+  <main id="gallery" class="grid"></main>
+  <p id="message" hidden></p>
+  <dialog id="viewer" aria-label="Image viewer" tabindex="-1">
+    <div class="viewer">
+      <img id="photo" alt="">
+      <span id="caption"></span>
+    </div>
+  </dialog>
+  <script>
+    const gallery = document.querySelector('#gallery');
+    const viewer = document.querySelector('#viewer');
+    const photo = document.querySelector('#photo');
+    let images = [];
+    let current = 0;
+
+    function layout(mode) {
+      gallery.className = mode;
+      for (const name of ['grid', 'list']) {
+        document.getElementById(name).setAttribute('aria-pressed', String(name === mode));
+      }
+      for (const [index, img] of gallery.querySelectorAll('img').entries()) {
+        img.src = mode === 'grid' ? `/thumbs/${images[index].id}` : `/images/${images[index].id}`;
+      }
+    }
+
+    function show(index) {
+      current = (index + images.length) % images.length;
+      photo.src = `/images/${images[current].id}`;
+      photo.alt = images[current].name;
+      document.querySelector('#caption').textContent = `${current + 1} / ${images.length} — ${images[current].name}`;
+      if (!viewer.open) {
+        viewer.showModal();
+        viewer.focus();
+      }
+    }
+
+    document.querySelector('#grid').onclick = () => layout('grid');
+    document.querySelector('#list').onclick = () => layout('list');
+    // Only clicks on the visible image count; object-fit can leave empty margins.
+    photo.addEventListener('click', event => {
+      if (!photo.naturalWidth || !photo.naturalHeight) return;
+      const rect = photo.getBoundingClientRect();
+      const scale = Math.min(rect.width / photo.naturalWidth, rect.height / photo.naturalHeight);
+      const width = photo.naturalWidth * scale;
+      const height = photo.naturalHeight * scale;
+      const x = (event.clientX - rect.left - (rect.width - width) / 2) / width;
+      const y = (event.clientY - rect.top - (rect.height - height) / 2) / height;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return;
+      if (y < 0.2) viewer.close();
+      else if (x < 0.2) show(current - 1);
+      else if (x > 0.8) show(current + 1);
+    });
+    viewer.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        show(current + (event.key === 'ArrowRight' ? 1 : -1));
+      }
+    });
+    viewer.addEventListener('close', () => { photo.removeAttribute('src'); });
+
+    fetch('/api/images')
+      .then(response => { if (!response.ok) throw new Error('Could not load images'); return response.json(); })
+      .then(data => {
+        images = data;
+        document.querySelector('#count').textContent = `${images.length} images`;
+        if (!images.length) {
+          const message = document.querySelector('#message');
+          message.textContent = 'No images found in this directory.';
+          message.hidden = false;
+        }
+        for (const [index, image] of images.entries()) {
+          const tile = document.createElement('button');
+          tile.type = 'button';
+          tile.className = 'tile';
+          tile.title = image.name;
+          const img = document.createElement('img');
+          img.src = `/thumbs/${image.id}`;
+          img.alt = '';
+          img.loading = 'lazy';
+          const label = document.createElement('span');
+          label.textContent = image.name;
+          tile.append(img, label);
+          tile.onclick = () => show(index);
+          gallery.append(tile);
+        }
+      })
+      .catch(() => {
+        const message = document.querySelector('#message');
+        message.textContent = 'Could not load images.';
+        message.hidden = false;
+      });
+  </script>
+</body>
+</html>
