@@ -30,7 +30,7 @@
     dialog { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #080808; color: white; }
     dialog::backdrop { background: #000; }
     .viewer { position: relative; width: 100%; height: 100%; }
-    #photo { display: block; width: 100%; height: 100%; object-fit: contain; }
+    #photo { display: block; width: 100%; height: 100%; object-fit: contain; touch-action: none; }
     .viewer button { position: absolute; z-index: 1; display: grid; place-items: center; width: 3rem; height: 3rem; padding: 0; background: #303030cc; }
     .viewer button:hover, .viewer button:focus-visible { background: #484848; }
     .viewer button svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -77,6 +77,7 @@
     const photo = document.querySelector('#photo');
     let images = [];
     let current = 0;
+    let touchStart = null;
 
     function layout(mode) {
       gallery.className = mode;
@@ -104,13 +105,47 @@
     document.querySelector('#previous').onclick = () => show(current - 1);
     document.querySelector('#next').onclick = () => show(current + 1);
     document.querySelector('#close').onclick = () => viewer.close();
+
+    photo.addEventListener('touchstart', event => {
+      touchStart = null;
+      if (event.touches.length !== 1 || !photo.naturalWidth || !photo.naturalHeight) return;
+
+      // Find the visible image so the close gesture starts at its bottom edge.
+      const rect = photo.getBoundingClientRect();
+      const scale = Math.min(rect.width / photo.naturalWidth, rect.height / photo.naturalHeight);
+      const height = photo.naturalHeight * scale;
+      const width = photo.naturalWidth * scale;
+      const left = rect.left + (rect.width - width) / 2;
+      const top = rect.top + (rect.height - height) / 2;
+      const touch = event.touches[0];
+      touchStart = {
+        x: touch.clientX,
+        y: touch.clientY,
+        bottom: touch.clientX >= left && touch.clientX <= left + width &&
+          touch.clientY >= top + height * 0.8 && touch.clientY <= top + height
+      };
+    });
+    photo.addEventListener('touchmove', event => {
+      if (event.touches.length !== 1) touchStart = null;
+    });
+    photo.addEventListener('touchcancel', () => { touchStart = null; });
+    photo.addEventListener('touchend', event => {
+      if (!touchStart || event.touches.length || event.changedTouches.length !== 1) return;
+      const { x, y, bottom } = touchStart;
+      touchStart = null;
+      const dx = event.changedTouches[0].clientX - x;
+      const dy = event.changedTouches[0].clientY - y;
+
+      if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy)) show(current + (dx < 0 ? 1 : -1));
+      else if (bottom && dy <= -50 && -dy > Math.abs(dx)) viewer.close();
+    });
     viewer.addEventListener('keydown', event => {
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault();
         show(current + (event.key === 'ArrowRight' ? 1 : -1));
       }
     });
-    viewer.addEventListener('close', () => { photo.removeAttribute('src'); });
+    viewer.addEventListener('close', () => { touchStart = null; photo.removeAttribute('src'); });
 
     fetch('/api/images')
       .then(response => { if (!response.ok) throw new Error('Could not load images'); return response.json(); })
