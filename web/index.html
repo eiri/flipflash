@@ -34,7 +34,7 @@
     .viewer button { position: absolute; z-index: 1; display: grid; place-items: center; width: 3rem; height: 3rem; padding: 0; background: #303030cc; }
     .viewer button:hover, .viewer button:focus-visible { background: #484848; }
     .viewer button svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    #previous, #next { top: 15%; width: 4rem; height: 70%; border-radius: 0; }
+    #previous, #next { top: 15%; width: 4rem; height: 70%; border: 0; background: transparent; }
     #previous { left: 0; }
     #next { right: 0; }
     #close { top: 1rem; right: 1rem; }
@@ -59,12 +59,8 @@
   <dialog id="viewer" aria-label="Image viewer" tabindex="-1">
     <div class="viewer">
       <img id="photo" alt="">
-      <button id="previous" type="button" aria-label="Previous image" title="Previous image">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg>
-      </button>
-      <button id="next" type="button" aria-label="Next image" title="Next image">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 4 8 8-8 8"/></svg>
-      </button>
+      <button id="previous" type="button" aria-label="Previous image" title="Previous image"></button>
+      <button id="next" type="button" aria-label="Next image" title="Next image"></button>
       <button id="close" type="button" aria-label="Close viewer" title="Close viewer">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg>
       </button>
