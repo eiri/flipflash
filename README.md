@@ -18,7 +18,7 @@ If you do not use mise, install Go 1.26 and run `go build -o flipflash .`.
 
 ## Using the gallery
 
-The grid shows thumbnails. The scroll icon make images list that fits each image on the screen. Click on an image to open it in a view. Click the top of the image to return to the gallery, or click its left or right edge to move between images. The arrow keys move between images, and Escape closes the viewer.
+The grid shows thumbnails. The scroll icon make images list that fits each image on the screen. Click an image to open the viewer. Use the buttons at the sides of the screen or the arrow keys to move between images. Use the cross in the top right or press Escape to close the viewer.
 
 Files appear in order by relative path. FlipFlash skips symbolic links. It makes JPEG, PNG, and GIF thumbnails when the browser asks for them. For WebP and AVIF, it sends the original files. The server does not store thumbnails, but browsers can cache generated thumbnails for one hour.
 
