@@ -91,6 +91,7 @@ func (g *gallery) image(r *http.Request) (photo, bool) {
 }
 
 func (g *gallery) serveImage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	photo, ok := g.image(r)
 	if !ok {
 		http.NotFound(w, r)
@@ -100,6 +101,7 @@ func (g *gallery) serveImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *gallery) serveThumb(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	photo, ok := g.image(r)
 	if !ok {
 		http.NotFound(w, r)
@@ -149,7 +151,6 @@ func (g *gallery) serveThumb(w http.ResponseWriter, r *http.Request) {
 
 	thumb := shrink(img, 360)
 	w.Header().Set("Content-Type", "image/jpeg")
-	w.Header().Set("Cache-Control", "private, max-age=3600")
 	_ = jpeg.Encode(w, thumb, &jpeg.Options{Quality: 78})
 }
 

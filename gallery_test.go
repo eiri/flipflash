@@ -33,6 +33,9 @@ func TestGallery(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "note.txt"), []byte("not an image"), 0644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(root, "sample.webp"), []byte("RIFF0000WEBP"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	if runtime.GOOS != "windows" {
 		if err := os.Symlink(filepath.Join(root, "nested", "picture.PNG"), filepath.Join(root, "linked.png")); err != nil {
 			t.Fatal(err)
@@ -43,7 +46,7 @@ func TestGallery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(g.images) != 1 || g.images[0].Name != "nested/picture.PNG" {
+	if len(g.images) != 2 || g.images[0].Name != "nested/picture.PNG" || g.images[1].Name != "sample.webp" {
 		t.Fatalf("images = %+v", g.images)
 	}
 
@@ -58,17 +61,20 @@ func TestGallery(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if len(images) != 1 || images[0].Name != "nested/picture.PNG" {
+	if len(images) != 2 || images[0].Name != "nested/picture.PNG" || images[1].Name != "sample.webp" {
 		t.Fatalf("API images = %+v", images)
 	}
 
-	for _, path := range []string{"/", "/images/0", "/thumbs/0"} {
+	for _, path := range []string{"/", "/images/0", "/thumbs/0", "/images/1", "/thumbs/1"} {
 		resp, err := http.Get(server.URL + path)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("%s: status = %d", path, resp.StatusCode)
+		}
+		if path != "/" && resp.Header.Get("Cache-Control") != "no-store" {
+			t.Errorf("%s: Cache-Control = %q", path, resp.Header.Get("Cache-Control"))
 		}
 		if path == "/thumbs/0" {
 			thumb, _, err := image.Decode(resp.Body)
@@ -78,7 +84,7 @@ func TestGallery(t *testing.T) {
 		}
 		resp.Body.Close()
 	}
-	for _, path := range []string{"/images/1", "/thumbs/-1", "/images/not-an-id", "/other"} {
+	for _, path := range []string{"/images/2", "/thumbs/-1", "/images/not-an-id", "/other"} {
 		resp, err := http.Get(server.URL + path)
 		if err != nil {
 			t.Fatal(err)
