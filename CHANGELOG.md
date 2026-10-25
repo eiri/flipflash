@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/eiri/flipflash/compare/v0.1.0...v0.1.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **ci:** homebrew token name ([f1d8c5e](https://github.com/eiri/flipflash/commit/f1d8c5e6385e15d2192c39481dde92f4514aac80))
+
 ## 0.1.0 (2026-10-25)
 
 
