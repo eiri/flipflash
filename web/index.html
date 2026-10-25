@@ -159,7 +159,7 @@
           tile.className = 'tile';
           tile.title = image.name;
           const img = document.createElement('img');
-          img.src = `/thumbs/${image.id}`;
+          img.src = gallery.className === 'list' ? `/images/${image.id}` : `/thumbs/${image.id}`;
           img.alt = '';
           img.loading = 'lazy';
           const label = document.createElement('span');
