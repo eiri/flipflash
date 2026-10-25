@@ -1,0 +1,7 @@
+FROM scratch
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/flipflash /flipflash
+USER 65532:65532
+EXPOSE 8081
+ENTRYPOINT ["/flipflash"]
+CMD ["--dir", "/photos"]
