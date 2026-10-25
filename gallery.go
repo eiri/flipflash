@@ -26,6 +26,7 @@ type photo struct {
 }
 
 type gallery struct {
+	root    *os.Root
 	images  []photo
 	workers chan struct{}
 }
@@ -36,8 +37,14 @@ var extensions = map[string]bool{
 }
 
 func newGallery(root string) (*gallery, error) {
+	// Keep file access confined even if indexed paths become symlinks.
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+
 	images := make([]photo, 0)
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -49,10 +56,11 @@ func newGallery(root string) (*gallery, error) {
 		if err != nil {
 			return err
 		}
-		images = append(images, photo{Name: filepath.ToSlash(rel), path: path})
+		images = append(images, photo{Name: filepath.ToSlash(rel), path: filepath.ToSlash(rel)})
 		return nil
 	})
 	if err != nil {
+		dir.Close()
 		return nil, err
 	}
 
@@ -60,7 +68,7 @@ func newGallery(root string) (*gallery, error) {
 	for i := range images {
 		images[i].ID = i
 	}
-	return &gallery{images: images, workers: make(chan struct{}, 4)}, nil
+	return &gallery{root: dir, images: images, workers: make(chan struct{}, 4)}, nil
 }
 
 func (g *gallery) routes() http.Handler {
@@ -97,7 +105,7 @@ func (g *gallery) serveImage(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFile(w, r, photo.path)
+	http.ServeFileFS(w, r, g.root.FS(), photo.path)
 }
 
 func (g *gallery) serveThumb(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +119,7 @@ func (g *gallery) serveThumb(w http.ResponseWriter, r *http.Request) {
 	// Formats without a standard-library decoder use the original file.
 	ext := strings.ToLower(filepath.Ext(photo.path))
 	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" {
-		http.ServeFile(w, r, photo.path)
+		http.ServeFileFS(w, r, g.root.FS(), photo.path)
 		return
 	}
 
@@ -122,7 +130,7 @@ func (g *gallery) serveThumb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, err := os.Open(photo.path)
+	file, err := g.root.Open(photo.path)
 	if err != nil {
 		http.Error(w, "Could not read image", http.StatusInternalServerError)
 		return
@@ -136,7 +144,7 @@ func (g *gallery) serveThumb(w http.ResponseWriter, r *http.Request) {
 	}
 	// Avoid decoding excessively large images into memory.
 	if int64(config.Width)*int64(config.Height) > 25_000_000 {
-		http.ServeFile(w, r, photo.path)
+		http.ServeFileFS(w, r, g.root.FS(), photo.path)
 		return
 	}
 	if _, err = file.Seek(0, 0); err != nil {

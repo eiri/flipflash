@@ -46,6 +46,7 @@ func TestGallery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { g.root.Close() })
 	if len(g.images) != 2 || g.images[0].Name != "nested/picture.PNG" || g.images[1].Name != "sample.webp" {
 		t.Fatalf("images = %+v", g.images)
 	}
@@ -96,11 +97,65 @@ func TestGallery(t *testing.T) {
 	}
 }
 
+func TestSymlinkSwap(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks require additional privileges")
+	}
+
+	for _, ext := range []string{".jpg", ".png", ".gif", ".webp", ".avif"} {
+		for _, parent := range []bool{false, true} {
+			name := ext + "/file"
+			if parent {
+				name = ext + "/directory"
+			}
+			t.Run(name, func(t *testing.T) {
+				root, outside := t.TempDir(), t.TempDir()
+				nested := filepath.Join(root, "nested")
+				if err := os.Mkdir(nested, 0755); err != nil {
+					t.Fatal(err)
+				}
+				path := filepath.Join(nested, "photo"+ext)
+				if err := os.WriteFile(path, []byte("original"), 0644); err != nil {
+					t.Fatal(err)
+				}
+				g, err := newGallery(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { g.root.Close() })
+
+				// Replace an indexed path after scanning; neither route may escape.
+				secret := filepath.Join(outside, "photo"+ext)
+				if err := os.WriteFile(secret, []byte("outside secret"), 0644); err != nil {
+					t.Fatal(err)
+				}
+				if parent {
+					path, secret = nested, outside
+				}
+				if err := os.RemoveAll(path); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(secret, path); err != nil {
+					t.Fatal(err)
+				}
+				for _, route := range []string{"/images/0", "/thumbs/0"} {
+					w := httptest.NewRecorder()
+					g.routes().ServeHTTP(w, httptest.NewRequest("GET", route, nil))
+					if w.Code < 400 || w.Body.String() == "outside secret" {
+						t.Errorf("%s: status = %d, body = %q", route, w.Code, w.Body.String())
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestEmptyGallery(t *testing.T) {
 	g, err := newGallery(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { g.root.Close() })
 	recorder := httptest.NewRecorder()
 	g.routes().ServeHTTP(recorder, httptest.NewRequest("GET", "/api/images", nil))
 	if recorder.Body.String() != "[]\n" {
