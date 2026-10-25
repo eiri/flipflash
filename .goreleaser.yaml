@@ -1,0 +1,77 @@
+version: 2
+project_name: flipflash
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - arm64
+      - amd64
+
+archives:
+  - name_template: >-
+      {{- .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+
+dockers_v2:
+  - dockerfile: Dockerfile.goreleaser
+    images:
+      - ghcr.io/eiri/{{ .ProjectName }}
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.description: "A web gallery for local images"
+      org.opencontainers.image.source: "https://github.com/eiri/{{ .ProjectName }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.licenses: MIT
+
+checksum:
+  name_template: checksums.txt
+snapshot:
+  version_template: "{{ incpatch .Version }}-rc"
+release:
+  prerelease: auto
+  mode: keep-existing
+changelog:
+  disable: true
+
+homebrew_casks:
+  - name: flipflash
+    custom_block: |
+      name "FlipFlash"
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/flipflash"]
+          end
+    repository:
+      owner: eiri
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TOKEN }}"
+    commit_author:
+      name: eiri
+      email: eiri@eiri.ca
+    commit_msg_template: "feat: brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    homepage: "https://github.com/eiri/flipflash"
+    description: "A web gallery for local images"
+    license: "MIT"

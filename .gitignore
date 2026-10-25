@@ -1,3 +1,4 @@
 /flipflash
+/dist/
 *.test
 coverage.out

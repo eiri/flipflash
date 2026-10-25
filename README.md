@@ -16,6 +16,21 @@ Open `http://localhost:8081` in a browser. Add `--port 9000` to use a different 
 
 If you do not use mise, install Go 1.26 and run `go build -o flipflash .`.
 
+## Docker
+
+Build and run the image locally:
+
+```sh
+docker build -t flipflash .
+docker run --rm -p 8081:8081 -v /path/to/photos:/photos:ro flipflash
+```
+
+For published image use `ghcr.io/eiri/flipflash:latest`. Mounted directories must be readable.
+
+## Releases
+
+Releases are managed by [GoReleaser](https://goreleaser.com/) and [Release Please](https://github.com/googleapis/release-please).
+
 ## Using the gallery
 
 The grid shows thumbnails. The scroll icon make images list that fits each image on the screen. Click an image to open the viewer. Use the buttons at the sides of the screen or the arrow keys to move between images. Swipe left or right on the image to move between images. Swipe up from the bottom of the image, use the cross in the top right, or press Escape to close the viewer.
